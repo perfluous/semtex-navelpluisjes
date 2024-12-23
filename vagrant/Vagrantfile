@@ -1,0 +1,74 @@
+# Vagrantfile
+
+# Set the default provider to libvirt
+ENV['VAGRANT_DEFAULT_PROVIDER'] = 'libvirt'
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "opensuse/Tumbleweed.x86_64"
+
+  # Specify the provider as libvirt
+  config.vm.provider :libvirt do |libvirt|
+    libvirt.memory = <...>
+    libvirt.cpus = <...>
+    libvirt.machine_virtual_size = <...>
+  end
+
+  # Assign network configuration
+  config.vm.network "private_network", type: "dhcp"
+
+  # Set up DNS via wicked
+  config.vm.provision "shell", inline: <<-SHELL
+    sudo timedatectl set-ntp true
+    sudo systemctl restart systemd-timesyncd
+
+    # Configure nameserver
+    sudo bash -c 'echo "NETCONFIG_DNS_STATIC_SERVERS=\"8.8.8.8 8.8.4.4\"" >> /etc/sysconfig/network/config'
+    # Update /etc/resolv.conf
+    echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf > /dev/null
+    echo "nameserver 8.8.4.4" | sudo tee -a /etc/resolv.conf > /dev/null
+
+    # Restart network service
+    sudo systemctl restart wicked
+
+    # Test DNS resolution
+    ping -c 4 google.com
+    if [ $? -ne 0 ]; then
+        echo "DNS setup failed. Retrying..."
+        sleep 20
+        ping -c 4 google.com
+        if [ $? -ne 0 ]; then
+            echo "DNS setup failed again. Exiting."
+            exit 1
+        else
+            echo "DNS setup successful after retry."
+        fi
+    else
+        echo "DNS setup successful."
+    fi
+  SHELL
+
+  # Provision the VM using modular shell scripts
+  config.vm.provision "shell", path: "<...>"
+
+  # Reboot the VM
+  config.vm.provision :reload
+
+  # Resize the root disk
+  config.vm.provision "shell", path: "<...>"
+
+  # Continue with provisioning
+  config.vm.provision "shell", path: "<...>"
+
+  config.vm.provision "shell", path: "<...>"
+  config.vm.provision "shell", path: "<...>"
+  config.vm.provision "shell", path: "<...>"
+  config.vm.provision "shell", path: "<...>"
+  config.vm.provision "shell", path: "<...>"
+
+  # Add the final cleanup script
+  config.vm.provision "shell", path: "<...>"
+
+  # Shared folders between host and guest
+  config.vm.synced_folder "<...", "<....>", type: "rsync",
+                          rsync__exclude: ["<...>"]
+end
